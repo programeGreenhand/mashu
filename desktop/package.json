@@ -4,11 +4,93 @@
   "description": "MaShu Coding 桌面端（Electron 壳，桥接 FastAPI + LangGraph 后端）",
   "main": "main.js",
   "private": true,
+  "author": {
+    "name": "programeGreenhand",
+    "email": "programeGreenhand@users.noreply.github.com"
+  },
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --enable-logging"
+    "dev": "electron . --enable-logging",
+    "icon": "node scripts/build-icon.js",
+    "pack": "electron-builder --dir",
+    "dist": "npm run icon && electron-builder"
   },
   "devDependencies": {
-    "electron": "^32.2.0"
+    "@resvg/resvg-js": "^2.6.2",
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.programegreenhand.mashu",
+    "productName": "MaShu Coding",
+    "copyright": "Copyright © 2026 programeGreenhand",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "ui/**/*",
+      "package.json",
+      "node_modules/**/*",
+      "!**/*.md",
+      "!**/{__pycache__,.pytest_cache,test,tests,__tests__,example,examples}/**",
+      "!**/{.DS_Store,.git,.idea,.vscode,.editorconfig,.eslintrc*,.prettierrc*,.travis.yml,appveyor.yml,circle.yml}"
+    ],
+    "extraResources": [
+      {
+        "from": "../app",
+        "to": "app",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/.pytest_cache/**",
+          "!**/.idea/**",
+          "!**/*.pyc",
+          "!**/.env"
+        ]
+      },
+      {
+        "from": "../agent",
+        "to": "agent",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/.pytest_cache/**",
+          "!**/.idea/**",
+          "!**/*.pyc",
+          "!**/.env"
+        ]
+      }
+    ],
+    "extraMetadata": {},
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MaShu Coding",
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "target": "dmg",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "target": ["AppImage"],
+      "category": "Development"
+    }
   }
 }

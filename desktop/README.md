@@ -1,79 +1,82 @@
 # MaShu Coding · Desktop (Electron)
 
-真正的桌面应用：UI 资源全在 `desktop/ui/` 里，原生窗口直接加载，**不再依赖 FastAPI 提供页面**。
+原生窗口打包：UI 资源全在 `desktop/ui/`，点桌面快捷方式即启动聊天窗口。
 
 ```
 h:\mashu\desktop\
 ├── package.json
-├── main.js          # Electron 主进程：spawn Python sidecar、注册 mashu:// 协议、建窗口
+├── main.js          # spawn Python sidecar + 注册 mashu:// 协议 + 环境检查
 ├── preload.js       # contextBridge：注入 window.mashu.apiBase
-├── README.md
-└── ui/              # ← 自包含的 UI
-    ├── index.html
-    ├── app.js       # 拷贝自 app/static/app.js，相对路径 + window.mashu.apiBase
-    ├── style.css    # 拷贝自 app/static/style.css
-    └── favicon.svg
+├── scripts/
+│   └── build-icon.js # SVG → 多分辨率 PNG，给 electron-builder 用
+├── ui/              # 自包含 UI（index.html / app.js / style.css / favicon.svg）
+└── README.md
 ```
+
+## 开发模式
+
+```bash
+cd H:\mashu\desktop
+npm install
+npm start         # 自动 spawn Python 后端，弹出原生窗口
+```
+
+环境变量：`MASHU_PORT=9000 npm start` 切换端口；`MASHU_PYTHON=C:\path\to\python.exe npm start` 选解释器。
+
+## 打包成可分发的桌面应用
+
+```bash
+cd H:\mashu\desktop
+npm run dist
+```
+
+产物：`desktop/dist/MaShu Coding-Setup-0.1.0.exe`（NSIS 安装器，约 90 MB）。
+
+安装后效果：
+- 桌面快捷方式 **MaShu Coding**
+- 开始菜单项 **MaShu Coding**
+- 双击启动 → 检测 Python 与 `.env` → 拉起后端 → 弹窗
+
+> `app/` 与 `agent/` 源码会被作为 `extraResources` 一起打进安装包（`.env` 排除，避免泄露 key）。
+
+## 前置条件（端用户机器）
+
+| 依赖 | 说明 |
+| --- | --- |
+| **Python 3.10+** | 加入 PATH；安装后端依赖：`pip install -r app/requirements.txt` |
+| **DeepSeek API Key** | 在 `<安装目录>/resources/agent/.env` 写入 `DEEPSEEK_API_KEY=sk-...` |
+| **Tavily API Key**（可选） | 同上文件 `TAVILY_API_KEY=tvly-...` |
+
+启动失败时，桌面端会弹出对话框告知确切原因。
 
 ## 架构
 
 ```
-Electron main  ──┬─ spawn ──> python ../app/run.py (FastAPI sidecar, 127.0.0.1:8765)
-                 │
-                 └─ 注册 mashu:// 协议  ──>  映射到 desktop/ui/
-                            │
-BrowserWindow ── loadURL mashu://app/index.html
-        │ preload 注入 window.mashu.apiBase = "http://127.0.0.1:8765"
-        ▼
-    fetch(`${apiBase}/api/...`)  ──>  FastAPI  ──>  LangGraph agent
+Electron main.js  ──┬─ spawn ──> python app/run.py  (FastAPI sidecar, 127.0.0.1:8765)
+                    │
+                    ├─ 注册 mashu:// 协议  ──>  desktop/ui/
+                    │
+                    └─ BrowserWindow loadURL mashu://app/index.html
+                             │  preload 注入 window.mashu.apiBase
+                             ▼
+                         fetch(`${apiBase}/api/...`)  ──>  FastAPI  ──>  LangGraph
 ```
 
-为什么用自定义协议而不直接 `loadFile`？
-- `file://` 没有真正的 origin，浏览器把它的 origin 当作 `null`，跨源 fetch 到 `http://` 会触发 opaque-origin 限制。
-- `mashu://` 是带特权的伪协议（`standard + secure + corsEnabled`），可正常跨源 fetch，且文件路径仍指向 `desktop/ui/`，目录自包含。
+为什么用自定义协议：`file://` 在 Chromium 里 origin 视为 `null`，跨源 `fetch` 受限；`mashu://` 携带 `corsEnabled: true` 特权，可正常调 FastAPI。
 
-## 快速启动
+## electron-builder 配置要点
 
-```bash
-cd H:\mashu\desktop
-npm install      # 首次：装 Electron
-npm start        # 自动拉起 Python 后端 + 弹原生窗口
-```
+`package.json` 的 `build` 段：
 
-## 环境变量（可选）
-
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `MASHU_PORT` | `8765` | 后端 FastAPI 监听端口（preload 也会同步使用） |
-| `MASHU_PYTHON` | `python` (Win) / `python3` | Python 解释器路径 |
-
-例：换 9000 端口：
-
-```bash
-MASHU_PORT=9000 npm start
-```
-
-## 同步 UI 资源
-
-`desktop/ui/app.js` 是从 `app/static/app.js` 拷贝而来（仅 `index.html`/`app.js` 两份需要保持同步；`style.css`/`favicon.svg` 不变）。两份文件唯一差异：
-
-- `index.html` 用相对路径 `style.css` / `app.js` / `favicon.svg`
-- `app.js` 用 `window.mashu.apiBase` 拼绝对 URL 调用 `/api/...`
-
-如有需要，可以写个 `scripts/sync-ui.js` 一键同步，告诉我。
-
-## 打包成 .exe（可选）
-
-```bash
-npm install --save-dev electron-builder
-npx electron-builder --win --x64
-```
-
-产物在 `desktop/dist/`（已在根 `.gitignore` 中忽略）。
+- `appId: com.programegreenhand.mashu` / `productName: MaShu Coding`
+- Windows：`win.target = nsis`，生成 `.exe` 安装器
+- NSIS：`oneClick: false` + `createDesktopShortcut: true` + `createStartMenuShortcut: true`
+- `extraResources`：把 `../app` 和 `../agent` 拷到 `resources/`，运行期由 `process.resourcesPath` 访问
+- 图标：`build/icon.png`（512×512），由 `npm run icon` 从 `ui/favicon.svg` 渲染
 
 ## 故障排查
 
-- **窗口白屏**：DevTools 打开 `npm run dev` 看控制台；常见是 Python 没启动、DeepSeek key 缺失。
-- **`mashu://` 加载失败**：确认 `desktop/ui/` 里 4 个文件都在；`Electron` ≥ 25 才能用 `protocol.handle`。
-- **端口占用**：`MASHU_PORT=9000 npm start`。
-- **SSE 没流式**：FastAPI CORS 已开 `*`，跨源到 `http://127.0.0.1:8765` 不会拦截。
+- **图标空白**：先跑 `npm run icon`；或把 `build/icon.png` 换成 256×256+ 的 PNG。
+- **安装后启动报"找不到 Python"**：装 Python 3.10+ 并加 PATH，或 `setx MASHU_PYTHON "D:\Python311\python.exe"`。
+- **安装后启动报"缺少 .env"**：在该路径创建文件并填 key：`%LOCALAPPDATA%\Programs\MaShu Coding\resources\agent\.env`。
+- **后端依赖缺失**：在该路径命令行执行 `pip install -r requirements.txt`（首次安装后必须做一次）。

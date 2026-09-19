@@ -5,29 +5,35 @@
  *
  *   Electron (本进程)
  *     │
- *     ├─ 注册自定义协议 mashu://  ──>  映射到 desktop/ui/ 目录
- *     │                                 （自包含的 UI 资源）
+ *     ├─ 注册 mashu:// 协议  ──>  映射到 desktop/ui/
  *     │
- *     ├─ spawn ──> python ../app/run.py (FastAPI sidecar, 127.0.0.1:8765)
+ *     ├─ spawn ──> python run.py (FastAPI sidecar, 127.0.0.1:8765)
+ *     │              ├─ dev:    python run.py at <repo>/app/
+ *     │              └─ 打包后: python run.py at <resources>/app/
  *     │
  *     └─ BrowserWindow loadURL mashu://app/index.html
- *              │   预加载注入 window.mashu.apiBase = http://127.0.0.1:8765
+ *              │  preload 注入 window.mashu.apiBase
  *              ▼
- *          fetch(${apiBase}/api/...)  ──>  FastAPI  ──>  LangGraph agent
+ *          fetch(`${apiBase}/api/...`)  ──>  FastAPI  ──>  LangGraph agent
  */
 'use strict';
 
-const { app, BrowserWindow, shell, protocol, net } = require('electron');
+const { app, BrowserWindow, shell, protocol, net, dialog } = require('electron');
 const { pathToFileURL } = require('url');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 
-// ---- 路径 ----
-const DESKTOP_DIR = __dirname;
-const UI_DIR = path.join(DESKTOP_DIR, 'ui');
-const APP_DIR = path.resolve(DESKTOP_DIR, '..', 'app');
+// ---- 路径（dev / 打包后不同） ----
+const IS_PACKAGED = app.isPackaged;
+const PROJECT_ROOT = IS_PACKAGED
+    ? process.resourcesPath                              // resources/
+    : path.resolve(__dirname, '..', '..');                // h:\mashu
+const APP_DIR = path.join(PROJECT_ROOT, 'app');
+const AGENT_DIR = path.join(PROJECT_ROOT, 'agent');
 const RUN_PY = path.join(APP_DIR, 'run.py');
+const UI_DIR = path.join(__dirname, 'ui');
 
 // ---- 后端配置 ----
 const HOST = '127.0.0.1';
@@ -45,10 +51,10 @@ protocol.registerSchemesAsPrivileged([
     {
         scheme: 'mashu',
         privileges: {
-            standard: true,        // 像 https:// 一样工作（URL 解析、相对路径）
-            secure: true,           // 视为安全上下文，可使用 crypto 等
+            standard: true,
+            secure: true,
             supportFetchAPI: true,
-            corsEnabled: true,      // 允许页面 fetch 跨源到 FastAPI
+            corsEnabled: true,
             stream: true,
         },
     },
@@ -58,6 +64,37 @@ protocol.registerSchemesAsPrivileged([
 function pickPython() {
     if (process.env.MASHU_PYTHON) return process.env.MASHU_PYTHON;
     return process.platform === 'win32' ? 'python' : 'python3';
+}
+
+// ---- 检查 Python + .env + 依赖 ----
+function checkEnvironment() {
+    const python = pickPython();
+    const r = spawnSync(python, ['--version'], { encoding: 'utf-8' });
+    if (r.status !== 0) {
+        return {
+            ok: false,
+            message: `找不到 Python 解释器 (${python})。\n\n` +
+                `请先安装 Python 3.10+ 并加入 PATH：\n` +
+                `https://www.python.org/downloads/\n\n` +
+                `或设置环境变量 MASHU_PYTHON 指向 python.exe 的完整路径。`,
+        };
+    }
+
+    const envFile = path.join(AGENT_DIR, '.env');
+    if (!fs.existsSync(envFile)) {
+        return {
+            ok: false,
+            message: `缺少配置文件：${envFile}\n\n` +
+                `请在该路径创建 .env，并填入：\n\n` +
+                `  DEEPSEEK_API_KEY=sk-你的key\n` +
+                `  TAVILY_API_KEY=tvly-你的key（可选）\n\n` +
+                `获取 key：\n` +
+                `  DeepSeek: https://platform.deepseek.com/api_keys\n` +
+                `  Tavily:   https://app.tavily.com`,
+        };
+    }
+
+    return { ok: true };
 }
 
 // ---- 工具：探测 FastAPI 就绪 ----
@@ -128,16 +165,14 @@ function stopBackend() {
     pythonProc = null;
 }
 
-// ---- 注册自定义协议 mashu:// -> desktop/ui/ ----
+// ---- 注册 mashu:// -> desktop/ui/ ----
 function registerMashuProtocol() {
     protocol.handle('mashu', async (request) => {
         try {
             const url = new URL(request.url);
-            // mashu://app/<path>  ->  desktop/ui/<path>
             let rel = decodeURIComponent(url.pathname || '/');
             if (rel === '/' || rel === '') rel = '/index.html';
             const target = path.normalize(path.join(UI_DIR, rel));
-            // 防越界
             if (!target.startsWith(UI_DIR)) {
                 return new Response('forbidden', { status: 403 });
             }
@@ -154,11 +189,20 @@ async function createWindow() {
     const ready = await waitForServer();
     if (!ready) {
         console.error(`[desktop] backend 未在 ${STARTUP_TIMEOUT_MS}ms 内就绪`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            await dialog.showMessageBox(mainWindow, {
+                type: 'error',
+                title: '后端未启动',
+                message: 'FastAPI 后端在 30 秒内未就绪。',
+                detail: '请检查 Python 依赖是否安装：\n\n' +
+                    `  cd "${APP_DIR}"\n` +
+                    '  pip install -r requirements.txt',
+            });
+        }
         app.quit();
         return;
     }
 
-    // 让 preload 拿到后端地址
     process.env.MASHU_API_BASE = API_BASE;
 
     mainWindow = new BrowserWindow({
@@ -169,14 +213,13 @@ async function createWindow() {
         title: 'MaShu Coding',
         backgroundColor: '#0f1115',
         webPreferences: {
-            preload: path.join(DESKTOP_DIR, 'preload.js'),
+            preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: true,
         },
     });
 
-    // 外链走系统浏览器
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         shell.openExternal(url).catch(() => {});
         return { action: 'deny' };
@@ -193,6 +236,15 @@ async function createWindow() {
 
 // ---- 生命周期 ----
 app.whenReady().then(async () => {
+    // 1) 环境检查
+    const env = checkEnvironment();
+    if (!env.ok) {
+        dialog.showErrorBox('MaShu Coding 启动失败', env.message);
+        app.quit();
+        return;
+    }
+
+    // 2) 注册协议 + 启后端 + 建窗口
     registerMashuProtocol();
     startBackend();
     await createWindow();
