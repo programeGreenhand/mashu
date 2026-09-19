@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MaShuCoding · Coding Agent</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+    <aside id="sidebar">
+        <div class="brand">
+            <span class="logo">MaShu</span>
+            <span class="logo-sub">Coding Agent</span>
+        </div>
+
+        <button id="new-session-btn" class="primary-btn">+ 新会话</button>
+
+        <div class="sidebar-section-title">历史会话</div>
+        <ul id="session-list" class="session-list"></ul>
+
+        <div class="sidebar-footer">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">未连接</span>
+        </div>
+    </aside>
+
+    <main id="main">
+        <header id="topbar">
+            <div id="current-title">未选择会话</div>
+            <div class="topbar-actions">
+                <button id="clear-btn" title="清空当前会话">清空</button>
+            </div>
+        </header>
+
+        <section id="messages" class="messages">
+            <div class="empty-hint" id="empty-hint">
+                <h2>你好，我是 MaShu Coding Agent</h2>
+                <p>我可以读取、搜索并执行本地项目代码。试着问我：</p>
+                <ul class="suggestions">
+                    <li><button class="suggest">帮我看看当前项目有哪些文件</button></li>
+                    <li><button class="suggest">搜索包含 FastAPI 的代码</button></li>
+                    <li><button class="suggest">运行 pytest 看测试结果</button></li>
+                </ul>
+            </div>
+        </section>
+
+        <footer id="composer">
+            <div class="composer-inner">
+                <textarea id="input" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
+                <button id="send-btn" class="primary-btn">发送</button>
+            </div>
+            <div class="hint">后端 LangGraph · 模型 deepseek-chat</div>
+        </footer>
+    </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
