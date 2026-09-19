@@ -1,0 +1,11 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+
+# 后端依赖（前端直接 import 后端的 graph，所以这些必须有）
+langchain-core>=0.3
+langgraph>=0.2
+langchain-openai>=0.2
+python-dotenv>=1.0
+
+# 后端 .env 里用的是 deepseek-chat，但 langchain_openai 兼容 OpenAI 接口
