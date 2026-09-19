@@ -1,0 +1,14 @@
+{
+  "name": "mashu-desktop",
+  "version": "0.1.0",
+  "description": "MaShu Coding 桌面端（Electron 壳，桥接 FastAPI + LangGraph 后端）",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0"
+  }
+}
