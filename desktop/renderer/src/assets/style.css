@@ -32,14 +32,17 @@ html, body {
     line-height: 1.6;
 }
 
-#app {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    height: 100vh;
+#app, .layout {
+    height: 100%;
 }
 
-/* ---------- Sidebar ---------- */
-#sidebar {
+.layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+}
+
+/* ---------- 侧栏 ---------- */
+.sidebar {
     background: var(--bg-elev);
     border-right: 1px solid var(--border-soft);
     padding: 16px;
@@ -165,14 +168,14 @@ html, body {
     50% { opacity: 0.4; }
 }
 
-/* ---------- Main ---------- */
-#main {
+/* ---------- 主区 ---------- */
+.main {
     display: flex;
     flex-direction: column;
     min-width: 0;
 }
 
-#topbar {
+.topbar {
     height: 56px;
     border-bottom: 1px solid var(--border-soft);
     display: flex;
@@ -181,7 +184,7 @@ html, body {
     padding: 0 20px;
     background: var(--bg-elev);
 }
-#current-title { font-size: 15px; font-weight: 600; }
+.current-title { font-size: 15px; font-weight: 600; }
 
 .topbar-actions button {
     background: transparent;
@@ -231,7 +234,7 @@ html, body {
 }
 .suggest:hover { border-color: var(--accent); background: var(--bg-elev-2); }
 
-/* ---------- Messages ---------- */
+/* ---------- 消息 ---------- */
 .msg {
     display: flex;
     gap: 12px;
@@ -252,7 +255,6 @@ html, body {
 }
 .msg.user .avatar { background: var(--user-bubble); color: white; }
 .msg.assistant .avatar { background: var(--bg-elev-2); color: var(--accent); border: 1px solid var(--border); }
-.msg.tool .avatar { background: var(--tool-bg); color: var(--warn); border: 1px solid var(--tool-border); }
 
 .msg .body { flex: 1; min-width: 0; }
 .msg .meta {
@@ -274,12 +276,6 @@ html, body {
     border-color: var(--user-bubble);
     color: white;
 }
-.msg.tool .bubble {
-    background: var(--tool-bg);
-    border-color: var(--tool-border);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 13px;
-}
 
 .bubble code {
     background: rgba(110, 118, 129, 0.2);
@@ -289,7 +285,7 @@ html, body {
     font-size: 0.92em;
 }
 .bubble pre {
-    background: rgba(0,0,0,0.35);
+    background: rgba(0, 0, 0, 0.35);
     padding: 10px 12px;
     border-radius: 6px;
     overflow-x: auto;
@@ -298,6 +294,13 @@ html, body {
 .bubble pre code {
     background: transparent;
     padding: 0;
+}
+
+/* ---------- 工具卡 ---------- */
+.msg.tool-wrapper {
+    max-width: 880px;
+    width: 100%;
+    margin: 0 auto;
 }
 
 .tool-card {
@@ -316,6 +319,7 @@ html, body {
     list-style: none;
     user-select: none;
 }
+.tool-card summary::-webkit-details-marker { display: none; }
 .tool-card summary::before {
     content: "▶";
     display: inline-block;
@@ -343,7 +347,9 @@ html, body {
     font-style: italic;
 }
 .thinking .dot {
-    width: 6px; height: 6px; border-radius: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
     background: var(--text-dim);
     animation: bounce 1.2s infinite;
 }
@@ -354,8 +360,8 @@ html, body {
     30% { transform: translateY(-4px); opacity: 1; }
 }
 
-/* ---------- Composer ---------- */
-#composer {
+/* ---------- 输入区 ---------- */
+.composer {
     border-top: 1px solid var(--border-soft);
     padding: 12px 20px 16px;
     background: var(--bg-elev);
@@ -374,7 +380,7 @@ html, body {
 }
 .composer-inner:focus-within { border-color: var(--accent); }
 
-#input {
+.composer-inner textarea {
     flex: 1;
     background: transparent;
     border: none;
@@ -386,7 +392,7 @@ html, body {
     line-height: 1.5;
     padding: 4px 6px;
 }
-#input::placeholder { color: var(--text-faint); }
+.composer-inner textarea::placeholder { color: var(--text-faint); }
 
 .composer-inner .primary-btn { padding: 8px 18px; }
 
@@ -397,7 +403,7 @@ html, body {
     margin-top: 8px;
 }
 
-/* ---------- Scrollbar ---------- */
+/* ---------- 滚动条 ---------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }

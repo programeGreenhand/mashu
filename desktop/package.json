@@ -1,7 +1,7 @@
 {
   "name": "mashu-desktop",
   "version": "0.1.0",
-  "description": "MaShu Coding 桌面端（Electron 壳，桥接 FastAPI + LangGraph 后端）",
+  "description": "MaShu Coding 桌面端（Electron + Vue 3 壳，桥接 FastAPI + LangGraph 后端）",
   "main": "main.js",
   "private": true,
   "author": {
@@ -12,8 +12,9 @@
     "start": "electron .",
     "dev": "electron . --enable-logging",
     "icon": "node scripts/build-icon.js",
+    "build:ui": "npm --prefix renderer run build",
     "pack": "electron-builder --dir",
-    "dist": "npm run icon && electron-builder"
+    "dist": "npm run icon && npm run build:ui && electron-builder"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
@@ -47,8 +48,7 @@
           "!**/__pycache__/**",
           "!**/.pytest_cache/**",
           "!**/.idea/**",
-          "!**/*.pyc",
-          "!**/.env"
+          "!**/*.pyc"
         ]
       },
       {
@@ -59,8 +59,7 @@
           "!**/__pycache__/**",
           "!**/.pytest_cache/**",
           "!**/.idea/**",
-          "!**/*.pyc",
-          "!**/.env"
+          "!**/*.pyc"
         ]
       }
     ],

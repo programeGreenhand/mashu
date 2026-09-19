@@ -1,4 +1,4 @@
-# Sensitive config
+# Sensitive config（不入仓库；本地打包时会通过 extraResources 带进安装包）
 .env
 *.env
 
@@ -16,6 +16,7 @@ htmlcov/
 # IDE
 .idea/
 .vscode/
+.history/
 *.swp
 *.swo
 

@@ -5,8 +5,8 @@
  *
  *   Electron (本进程)
  *     │
- *     ├─ 注册 mashu:// 协议  ──>  映射到 desktop/ui/
- *     │
+ *     ├─ 注册 mashu:// 协议  ──>  映射到 desktop/ui/（Vue 3 + Vite 构建产物）
+ *     │                          dev 模式可用 MASHU_DEV_URL 指向 vite dev server
  *     ├─ spawn ──> python run.py (FastAPI sidecar, 127.0.0.1:8765)
  *     │              ├─ dev:    python run.py at <repo>/app/
  *     │              └─ 打包后: python run.py at <resources>/app/
@@ -29,7 +29,7 @@ const fs = require('fs');
 const IS_PACKAGED = app.isPackaged;
 const PROJECT_ROOT = IS_PACKAGED
     ? process.resourcesPath                              // resources/
-    : path.resolve(__dirname, '..', '..');                // h:\mashu
+    : path.resolve(__dirname, '..');                     // h:\mashu
 const APP_DIR = path.join(PROJECT_ROOT, 'app');
 const AGENT_DIR = path.join(PROJECT_ROOT, 'agent');
 const RUN_PY = path.join(APP_DIR, 'run.py');
@@ -225,7 +225,9 @@ async function createWindow() {
         return { action: 'deny' };
     });
 
-    const url = 'mashu://app/index.html';
+    // 生产：mashu:// 自定义协议加载 desktop/ui/ 下的 Vue 构建产物；
+    // 开发：设 MASHU_DEV_URL=http://localhost:5173 可直连 vite dev server（HMR）
+    const url = process.env.MASHU_DEV_URL || 'mashu://app/index.html';
     console.log(`[desktop] loadURL ${url}   (api=${API_BASE})`);
     await mainWindow.loadURL(url);
 
